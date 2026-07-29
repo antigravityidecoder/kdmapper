@@ -1,24 +1,43 @@
-name: Build KDMapper
+name: Advanced KDMapper CI
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
+    name: Compile Binaries (x64)
     runs-on: windows-latest
 
     steps:
-    - name: Checkout repository
+    - name: Checkout Repository Source
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
 
-    - name: Add MSBuild to PATH
+    - name: Set up MSBuild
       uses: microsoft/setup-msbuild@v2
 
-    - name: Compile Executable
-      run: msbuild kdmapper.sln /p:Configuration=Release /p:Platform=x64
+    - name: Restore NuGet Packages
+      run: |
+        nuget restore kdmapper.sln
+      continue-on-error: true
 
-    - name: Upload Artifact
+    - name: Compile Executable (Release Configuration)
+      run: |
+        msbuild kdmapper.sln /p:Configuration=Release /p:Platform=x64 /p:LinkIncremental=false /v:m
+      shell: cmd
+
+    - name: Verify Output Files Exist
+      run: |
+        dir /s /b *.exe
+      shell: cmd
+
+    - name: Archive Compiled Binaries
       uses: actions/upload-artifact@v4
       with:
-        name: kdmapper-binary
-        path: x64/Release/kdmapper.exe
+        name: kdmapper-production-build
+        path: |
+          **/*Release*/*.exe
+          !**/obj/**
+        if-no-files-found: error
+        retention-days: 5
